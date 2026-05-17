@@ -1,0 +1,8 @@
+{
+  "name": "YojanaAI",
+  "description": "A precision-engineered recommendation engine for Indian government schemes. Matches user profiles against thousands of Central and State schemes using AI to ensure eligibility and relevance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

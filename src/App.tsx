@@ -210,31 +210,55 @@ export default function App() {
   };
 
   const startVoice = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = lang === 'en' ? 'en-IN' : lang === 'hi' ? 'hi-IN' : lang === 'ta' ? 'ta-IN' : 'mr-IN';
+    recognition.interimResults = true;
+
     setShowVoiceModal(true);
     setIsListening(true);
     setVoiceText('');
-    
-    // Simulate live transcription
-    const phrases = lang === 'hi' 
-      ? ["खेती के लिए मदद चाहिए", "किसान सम्मान निधि", "बीज सब्सिडी योजना"]
-      : ["Scholarship for college", "Women empowerment schemes", "Business loans for startups"];
-    
-    let currentPhrase = phrases[Math.floor(Math.random() * phrases.length)];
-    let i = 0;
-    const interval = setInterval(() => {
-      setVoiceText(currentPhrase.slice(0, i + 1));
-      i++;
-      if (i === currentPhrase.length) {
-        clearInterval(interval);
-      }
-    }, 100);
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0])
+        .map((result: any) => result.transcript)
+        .join('');
+      setVoiceText(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      setShowVoiceModal(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+    (window as any)._recognition = recognition;
   };
 
   const finishVoice = () => {
+    if ((window as any)._recognition) {
+      (window as any)._recognition.stop();
+    }
     setIsListening(false);
     setNlQuery(voiceText);
     setTimeout(() => {
       setShowVoiceModal(false);
+      // Automatically trigger search after voice input if text exists
+      if (voiceText.trim()) {
+        const fakeEvent = { preventDefault: () => {} } as any;
+        handleNLParse(fakeEvent);
+      }
     }, 500);
   };
 
@@ -298,34 +322,38 @@ export default function App() {
                 </p>
 
                 <div className="w-full max-w-3xl relative px-4 group">
-                  <div className="flex flex-col md:flex-row items-center gap-3 bg-white border-2 border-natural-secondary rounded-[2.5rem] p-3 md:p-3 shadow-2xl shadow-yojana-green/5 focus-within:border-yojana-green/50 transition-all">
-                    <form onSubmit={handleNLParse} className="flex-1 flex items-center w-full">
-                      <div className="pl-6">
-                        <Search className="w-6 h-6 text-natural-muted" />
+                  <div className="bg-white border-2 border-natural-secondary rounded-[2.5rem] p-3 md:p-3 shadow-2xl shadow-yojana-green/5 focus-within:border-yojana-green/50 transition-all">
+                    <form onSubmit={handleNLParse} className="flex flex-col md:flex-row items-center gap-3 w-full">
+                      <div className="flex-1 flex items-center w-full">
+                        <div className="pl-6">
+                          <Search className="w-6 h-6 text-natural-muted" />
+                        </div>
+                        <input 
+                          type="text" 
+                          value={nlQuery}
+                          onChange={(e) => setNlQuery(e.target.value)}
+                          placeholder={t.searchPlaceholder}
+                          className="w-full bg-transparent border-none px-4 py-5 focus:outline-none text-lg font-bold text-mud-text placeholder:text-natural-muted/50 placeholder:font-medium"
+                        />
                       </div>
-                      <input 
-                        type="text" 
-                        value={nlQuery}
-                        onChange={(e) => setNlQuery(e.target.value)}
-                        placeholder={t.searchPlaceholder}
-                        className="w-full bg-transparent border-none px-4 py-5 focus:outline-none text-lg font-bold text-mud-text placeholder:text-natural-muted/50 placeholder:font-medium"
-                      />
+                      
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <button 
+                          type="button"
+                          onClick={startVoice}
+                          className="p-5 bg-natural-base text-yojana-green rounded-full hover:bg-yojana-green/10 transition-colors"
+                        >
+                          <Mic className="w-6 h-6" />
+                        </button>
+                        <button 
+                          type="submit"
+                          disabled={parsing}
+                          className="flex-1 md:flex-none bg-yojana-green text-white px-10 py-5 rounded-full font-black uppercase tracking-widest text-sm shadow-xl shadow-yojana-green/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {parsing ? t.analyzing : t.searchButton}
+                        </button>
+                      </div>
                     </form>
-                    
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      <button 
-                        onClick={startVoice}
-                        className="p-5 bg-natural-base text-yojana-green rounded-full hover:bg-yojana-green/10 transition-colors"
-                      >
-                        <Mic className="w-6 h-6" />
-                      </button>
-                      <button 
-                        onClick={handleNLParse}
-                        className="flex-1 md:flex-none bg-yojana-green text-white px-10 py-5 rounded-full font-black uppercase tracking-widest text-sm shadow-xl shadow-yojana-green/20 hover:scale-[1.02] active:scale-95 transition-all"
-                      >
-                        {parsing ? t.analyzing : t.step1}
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
